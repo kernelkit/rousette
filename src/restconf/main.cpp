@@ -26,11 +26,12 @@
 static const char usage[] =
   R"(Rousette - RESTCONF server
 Usage:
-  rousette [--syslog] [--timeout <SECONDS>] [--help]
+  rousette [--syslog] [--timeout <SECONDS>] [--log-level <LEVEL>] [--help]
 Options:
   -h --help                         Show this screen.
   -t --timeout <SECONDS>            Change default timeout in sysrepo (if not set, use sysrepo internal).
   --syslog                          Log to syslog.
+  --log-level <LEVEL>               Set log level (trace, debug, info, warn, error, critical, off) [default: info].
 )";
 #ifdef HAVE_SYSTEMD
 
@@ -75,9 +76,31 @@ int main(int argc, char* argv [])
 {
     auto args = docopt::docopt(usage, {argv + 1, argv + argc}, true,""/* version */, true);
     auto timeout = std::chrono::milliseconds{0};
+    auto logLevel = spdlog::level::info;
 
     if (args["--timeout"]) {
         timeout = std::chrono::milliseconds{args["--timeout"].asLong() * 1000};
+    }
+
+    if (args["--log-level"]) {
+        auto levelStr = args["--log-level"].asString();
+        if (levelStr == "trace") {
+            logLevel = spdlog::level::trace;
+        } else if (levelStr == "debug") {
+            logLevel = spdlog::level::debug;
+        } else if (levelStr == "info") {
+            logLevel = spdlog::level::info;
+        } else if (levelStr == "warn" || levelStr == "warning") {
+            logLevel = spdlog::level::warn;
+        } else if (levelStr == "error" || levelStr == "err") {
+            logLevel = spdlog::level::err;
+        } else if (levelStr == "critical") {
+            logLevel = spdlog::level::critical;
+        } else if (levelStr == "off") {
+            logLevel = spdlog::level::off;
+        } else {
+            throw std::runtime_error("Invalid log level: " + levelStr + ". Valid levels: trace, debug, info, warn, error, critical, off");
+        }
     }
     if (args["--syslog"].asBool()) {
         auto syslog_sink = std::make_shared<spdlog::sinks::syslog_sink_mt>("rousette", LOG_PID, LOG_USER, true);
@@ -94,7 +117,7 @@ int main(int argc, char* argv [])
         auto logger = std::make_shared<spdlog::logger>("rousette", stdout_sink);
         spdlog::set_default_logger(logger);
     }
-    spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(logLevel);
 
     /* We will parse URIs using boost::spirit's alnum/alpha/... matchers which are locale-dependent.
      * Let's use something stable no matter what the system is using
