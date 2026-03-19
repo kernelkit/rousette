@@ -98,7 +98,7 @@ Nacm::Nacm(sysrepo::Connection conn)
     m_srSub.onModuleChange(
         "ietf-netconf-acm", [&](auto session, auto, auto, auto, auto, auto) {
             m_anonymousEnabled = validAnonymousNacmRules(session, ANONYMOUS_USER_GROUP);
-            spdlog::info("NACM config validation: Anonymous user access {}", m_anonymousEnabled ? "enabled" : "disabled");
+            spdlog::debug("NACM config validation: Anonymous user access {}", m_anonymousEnabled ? "enabled" : "disabled");
             return sysrepo::ErrorCode::Ok;
         },
         std::nullopt,
