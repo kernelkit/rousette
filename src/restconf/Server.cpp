@@ -17,10 +17,12 @@
 #include "restconf/Exceptions.h"
 #include "restconf/NotificationStream.h"
 #include "auth/Http.h"
+#include "NacmIdentities.h"
 #include "restconf/Server.h"
 #include "restconf/YangSchemaLocations.h"
 #include "restconf/uri.h"
 #include "restconf/utils/dataformat.h"
+#include "restconf/utils/sysrepo.h"
 #include "restconf/utils/yang.h"
 #include "sr/OpticalEvents.h"
 
@@ -594,8 +596,10 @@ void processPost(std::shared_ptr<RequestContext> requestCtx, const std::chrono::
     createdNodes.begin()->newMeta(*modNetconf, "operation", "create");
     yangInsert(*requestCtx, *createdNodes.begin());
 
+    spdlog::info("user \"{}\" committing changes to {} ...", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
     requestCtx->sess.editBatch(*edit, sysrepo::DefaultOperation::Merge);
     requestCtx->sess.applyChanges(timeout);
+    spdlog::info("user \"{}\" committed changes to {}.", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
 
     requestCtx->res.write_head(201,
                                {
@@ -682,8 +686,10 @@ void processYangPatchImpl(const std::shared_ptr<RequestContext>& requestCtx, con
     }
 
     if (mergedEdits) {
+        spdlog::info("user \"{}\" committing changes to {} ...", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
         requestCtx->sess.editBatch(*mergedEdits, sysrepo::DefaultOperation::Merge);
         requestCtx->sess.applyChanges(timeout);
+        spdlog::info("user \"{}\" committed changes to {}.", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
     }
 }
 
@@ -726,12 +732,16 @@ void processPutOrPlainPatch(std::shared_ptr<RequestContext> requestCtx, const st
         validateInputMetaAttributes(ctx, *edit);
 
         if (requestCtx->req.method() == "PUT") {
+            spdlog::info("user \"{}\" committing changes to {} ...", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
             requestCtx->sess.replaceConfig(edit, std::nullopt, timeout);
+            spdlog::info("user \"{}\" committed changes to {}.", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
 
             requestCtx->res.write_head(edit ? 201 : 204, {CORS});
         } else {
+            spdlog::info("user \"{}\" committing changes to {} ...", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
             requestCtx->sess.editBatch(*edit, sysrepo::DefaultOperation::Merge);
             requestCtx->sess.applyChanges(timeout);
+            spdlog::info("user \"{}\" committed changes to {}.", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
             requestCtx->res.write_head(204, {CORS});
         }
         requestCtx->res.end();
@@ -763,8 +773,10 @@ void processPutOrPlainPatch(std::shared_ptr<RequestContext> requestCtx, const st
         yangInsert(*requestCtx, *replacementNode);
     }
 
+    spdlog::info("user \"{}\" committing changes to {} ...", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
     requestCtx->sess.editBatch(*edit, sysrepo::DefaultOperation::Merge);
     requestCtx->sess.applyChanges(timeout);
+    spdlog::info("user \"{}\" committed changes to {}.", requestCtx->sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(requestCtx->sess.activeDatastore()));
 
     if (requestCtx->req.method() == "PUT") {
         requestCtx->res.write_head(nodeExisted ? 204 : 201, {CORS});
@@ -1219,8 +1231,10 @@ Server::Server(
                             deletedNode->newMeta(*netconf, "operation", "delete");
                         }
 
+                        spdlog::info("user \"{}\" committing changes to {} ...", sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(sess.activeDatastore()));
                         sess.editBatch(*edit, sysrepo::DefaultOperation::Merge);
                         sess.applyChanges(timeout);
+                        spdlog::info("user \"{}\" committed changes to {}.", sess.getNacmUser().value_or(ANONYMOUS_USER), datastoreToString(sess.activeDatastore()));
                     } catch (const sysrepo::ErrorWithCode& e) {
                         if (e.code() == sysrepo::ErrorCode::Unauthorized) {
                             throw ErrorResponse(403, "application", "access-denied", "Access denied.", restconfRequest.path);

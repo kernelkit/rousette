@@ -38,4 +38,21 @@ sysrepo::Datastore datastoreFromString(const std::string& datastore)
 
     throw std::runtime_error("Unknown datastore '" + datastore + "'");
 }
+
+std::string datastoreToString(sysrepo::Datastore datastore)
+{
+    switch (datastore) {
+    case sysrepo::Datastore::Running:
+        return "running";
+    case sysrepo::Datastore::Operational:
+        return "operational";
+    case sysrepo::Datastore::Candidate:
+        return "candidate";
+    case sysrepo::Datastore::Startup:
+        return "startup";
+    case sysrepo::Datastore::FactoryDefault:
+        return "factory-default";
+    }
+    throw std::runtime_error("Unknown datastore");
+}
 }

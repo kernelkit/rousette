@@ -27,4 +27,5 @@ public:
 };
 
 sysrepo::Datastore datastoreFromString(const std::string& datastore);
+std::string datastoreToString(sysrepo::Datastore datastore);
 }
