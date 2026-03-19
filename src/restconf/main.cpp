@@ -110,11 +110,13 @@ int main(int argc, char* argv [])
         auto syslog_sink = std::make_shared<spdlog::sinks::syslog_sink_mt>("rousette", LOG_PID, LOG_USER, true);
         auto logger = std::make_shared<spdlog::logger>("rousette", syslog_sink);
         spdlog::set_default_logger(logger);
+        spdlog::set_pattern("%v");
 #ifdef HAVE_SYSTEMD
     } else if (is_journald_active()) {
         auto sink = std::make_shared<journald_sink<std::mutex>>();
         auto logger = std::make_shared<spdlog::logger>("rousette", sink);
         spdlog::set_default_logger(logger);
+        spdlog::set_pattern("%v");
 #endif
     } else {
         auto stdout_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
