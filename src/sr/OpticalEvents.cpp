@@ -47,7 +47,7 @@ OpticalEvents::OpticalEvents(sysrepo::Session session)
         }
     }
 
-    spdlog::warn("Telemetry disabled. No CzechLight YANG modules found.");
+    spdlog::debug("Telemetry disabled. No CzechLight YANG modules found.");
 }
 
 sysrepo::ErrorCode OpticalEvents::onChange(sysrepo::Session session, const std::string& module)
