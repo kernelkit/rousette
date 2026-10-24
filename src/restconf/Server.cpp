@@ -402,9 +402,11 @@ libyang::CreatedNodes createEditForPutAndPatch(libyang::Context& ctx, const std:
     auto [lyParentPath, lastPathSegment] = asLibyangPathSplit(ctx, uriPath);
 
     if (!valueStr) {
-        // Some YANG patch operations do not have a value node, e.g., delete or move
+        // Some YANG patch operations do not have a value node, e.g., delete or move.
+        // A leaf cannot be created without a value unless it is opaque, so ask for that;
+        // containers and list entries still come out as regular nodes.
         auto lyFullPath = asRestconfRequest(ctx, "PATCH", uriPath).path;
-        auto [parent, node] = ctx.newPath2(lyFullPath);
+        auto [parent, node] = ctx.newPath2(lyFullPath, std::nullopt, libyang::CreationOptions::Opaque);
         editNode = parent;
         replacementNode = node;
     } else if (!lyParentPath.empty()) {
@@ -654,6 +656,16 @@ void processYangPatchEdit(const std::shared_ptr<RequestContext>& requestCtx, con
     auto target = childLeafValue(editContainer, "target");
     auto operation = childLeafValue(editContainer, "operation");
 
+    // An opaque node (a typed leaf being deleted) cannot carry metadata; sysrepo reads the
+    // operation from an attribute on those instead, same as for the DELETE method.
+    auto setOperation = [&netconfMod](libyang::DataNode& node, const std::string& op) {
+        if (node.isOpaque()) {
+            node.newAttrOpaqueJSON("ietf-netconf", "operation", op);
+        } else {
+            node.newMeta(netconfMod, "operation", op);
+        }
+    };
+
     auto [singleEdit, replacementNode] = createEditForPutAndPatch(ctx,
                                                                   uriJoin(requestCtx->req.uri().raw_path, target),
                                                                   yangPatchValueAsJSON(editContainer),
@@ -677,10 +689,10 @@ void processYangPatchEdit(const std::shared_ptr<RequestContext>& requestCtx, con
             throw ErrorResponse(400, "protocol", "invalid-value", "Leaf 'point' must always come with leaf 'where' set to 'before' or 'after'");
         }
 
-        replacementNode->newMeta(netconfMod, "operation", operation == "insert" ? "create" : "merge");
+        setOperation(*replacementNode, operation == "insert" ? "create" : "merge");
         yangInsert(ctx, *replacementNode, where, point);
     } else {
-        replacementNode->newMeta(netconfMod, "operation", operation);
+        setOperation(*replacementNode, operation);
     }
 
     if (!mergedEdits) {
