@@ -115,6 +115,9 @@ bool Nacm::authorize(sysrepo::Session session, const std::string& user) const
     }
 
     session.setNacmUser(user);
+    // Subscribers only learn who sent an RPC from the originator name,
+    // the NACM user stays with this session.
+    session.setOriginatorName(user);
     spdlog::trace("Authenticated as user {}", user);
     return true;
 }
