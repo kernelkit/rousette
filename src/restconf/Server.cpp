@@ -354,7 +354,15 @@ constexpr auto withRestconfExceptions(T func, U rejectWithError)
             rejectWithError(requestCtx->sess.getContext(), requestCtx->dataFormat.response, requestCtx->req, requestCtx->res, e.code, e.errorType, e.errorTag, e.errorMessage, e.errorPath, e.errorInfo);
         } catch (const libyang::ErrorWithCode& e) {
             if (e.code() == libyang::ErrorCode::ValidationFailure) {
-                rejectWithError(requestCtx->sess.getContext(), requestCtx->dataFormat.response, requestCtx->req, requestCtx->res, 400, "protocol", "invalid-value", "Validation failure: "s + e.what(), std::nullopt, std::nullopt);
+                auto ctx = requestCtx->sess.getContext();
+                auto errors = ctx.getErrors();
+                ctx.cleanAllErrors();
+                std::erase_if(errors, [](const auto& err) { return err.level != libyang::LogLevel::Error; });
+                if (!errors.empty()) {
+                    rejectWithError(ctx, requestCtx->dataFormat.response, requestCtx->req, requestCtx->res, 400, "protocol", "invalid-value", "Validation failure: "s + errors.back().message, errors.back().dataPath, std::nullopt);
+                } else {
+                    rejectWithError(ctx, requestCtx->dataFormat.response, requestCtx->req, requestCtx->res, 400, "protocol", "invalid-value", "Validation failure: "s + e.what(), std::nullopt, std::nullopt);
+                }
             } else {
                 rejectWithError(requestCtx->sess.getContext(), requestCtx->dataFormat.response, requestCtx->req, requestCtx->res, 500, "application", "operation-failed", "Internal server error due to libyang exception: "s + e.what(), std::nullopt, std::nullopt);
             }
